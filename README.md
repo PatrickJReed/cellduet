@@ -33,7 +33,17 @@ Stretch (v1):
 
 ## Scope discipline
 
-This project deliberately uses **pre-computed embeddings** and does not retrain encoders from raw images or raw counts. The interesting research question lives in the embedding-space comparison, not in the encoders. This keeps v0 shippable on a single workstation; full encoder training is out of scope.
+This project deliberately uses **pre-computed embeddings** and does not retrain encoders from raw images or raw counts. The interesting research question lives in the embedding-space comparison, not in the encoders. This keeps v0 shippable on Google Colab Free tier (T4 GPU); full encoder training is out of scope.
+
+## Running cellduet
+
+All analyses are designed to run on **Google Colab Free tier**. Code is developed locally; execution happens on Colab; artifacts persist on **Hugging Face Hub**.
+
+| Notebook | Open on Colab |
+|---|---|
+| `00_environment_smoke` | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PatrickJReed/cellduet/blob/main/notebooks/00_environment_smoke.ipynb) |
+
+First-time setup (Hugging Face account, Colab activation, VS Code workflow): see [docs/SETUP.md](docs/SETUP.md).
 
 ## Related work
 

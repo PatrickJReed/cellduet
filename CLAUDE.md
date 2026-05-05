@@ -2,6 +2,8 @@
 
 This file seeds the next Claude Code session with project context that isn't obvious from the code or README alone. Read this before doing meaningful work.
 
+For the **strategic background** behind the project (why it exists, project-selection rationale, dataset rationale, role-class positioning, connection to prior work, short- and long-term goals, honestly-acknowledged gaps), read `docs/CONTEXT.md`. This file (`CLAUDE.md`) is for *how to work in the codebase*; `docs/CONTEXT.md` is for *why the codebase exists*.
+
 ## What this repo is
 
 `cellduet` is a portfolio research artifact authored by Patrick J. Reed, Ph.D. (computational biologist, 15+ years; recent Principal Scientist at Bristol Myers Squibb). The project tests whether perturbation phenotypes converge across **transcriptomic** (Tahoe-100M / Arc Virtual Cell Atlas) and **morphological** (Recursion RxRx3 / Phenom embeddings) readouts of the same gene-level CRISPR perturbations.

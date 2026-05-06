@@ -6,7 +6,8 @@ across plates within a single batch; this module provides the alignment
 step that intersects feature columns before per-compound aggregation.
 See docs/datasets/cpjump1.md.
 """
-from typing import Sequence
+
+from collections.abc import Sequence
 
 import pandas as pd
 

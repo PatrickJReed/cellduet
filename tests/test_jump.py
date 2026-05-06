@@ -1,4 +1,5 @@
 """Tests for src/cellduet/jump.py."""
+
 import pandas as pd
 import pytest
 

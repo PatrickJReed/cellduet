@@ -10,7 +10,6 @@ wells, applied to all wells, after which the control wells have zero
 mean and unit variance per latent dimension. Reference: Kraus et al.
 arXiv:2503.20158, and Recursion's EFAAR_benchmarking library.
 """
-from typing import Optional
 
 import numpy as np
 from sklearn.decomposition import PCA
@@ -19,7 +18,7 @@ from sklearn.decomposition import PCA
 def typical_variation_normalization(
     X: np.ndarray,
     is_control: np.ndarray,
-    n_components: Optional[int] = None,
+    n_components: int | None = None,
 ) -> np.ndarray:
     """EFAAR-style TVN: PCA-fit on controls, project all wells, whiten.
 
@@ -41,9 +40,7 @@ def typical_variation_normalization(
     if X.ndim != 2:
         raise ValueError(f"X must be 2-D, got shape {X.shape}")
     if is_control.shape[0] != X.shape[0]:
-        raise ValueError(
-            f"is_control length {is_control.shape[0]} must equal X rows {X.shape[0]}"
-        )
+        raise ValueError(f"is_control length {is_control.shape[0]} must equal X rows {X.shape[0]}")
     if not is_control.any():
         raise ValueError("is_control must mark at least one row as a control well")
 

@@ -5,7 +5,8 @@ streams the `pseudobulk_differential_expression` config and aggregates
 to per-(drug, cell_line) log-fold-change vectors. See
 docs/datasets/tahoe-100m.md for distribution and license details.
 """
-from typing import Iterable, List, Optional
+
+from collections.abc import Iterable
 
 import pandas as pd
 
@@ -29,7 +30,7 @@ def plate_match_dmso(
 def aggregate_per_drug(
     df: pd.DataFrame,
     value_cols: Iterable[str],
-    group_cols: Optional[List[str]] = None,
+    group_cols: list[str] | None = None,
 ) -> pd.DataFrame:
     """Mean-aggregate value_cols across replicate rows within each group.
 
@@ -44,8 +45,8 @@ def aggregate_per_drug(
 def stream_pseudobulk_de_to_tall_df(
     repo_id: str = "tahoebio/Tahoe-100M",
     config: str = "pseudobulk_differential_expression",
-    drugs_filter: Optional[Iterable[str]] = None,
-    genes_filter: Optional[Iterable[str]] = None,
+    drugs_filter: Iterable[str] | None = None,
+    genes_filter: Iterable[str] | None = None,
     batch_size: int = 50_000,
     drug_col: str = "drug",
     gene_col: str = "gene_symbol",
@@ -62,7 +63,7 @@ def stream_pseudobulk_de_to_tall_df(
     from datasets import load_dataset  # imported lazily so unit tests don't require it
 
     ds = load_dataset(repo_id, config, streaming=True, split="train")
-    chunks: List[pd.DataFrame] = []
+    chunks: list[pd.DataFrame] = []
     drugs_set = set(drugs_filter) if drugs_filter is not None else None
     genes_set = set(genes_filter) if genes_filter is not None else None
     for batch in ds.iter(batch_size=batch_size):

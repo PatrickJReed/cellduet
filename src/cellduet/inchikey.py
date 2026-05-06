@@ -1,5 +1,6 @@
 """InChIKey computation from SMILES, used for cross-dataset compound joining."""
-from typing import Literal, Optional
+
+from typing import Literal
 
 from rdkit import Chem
 
@@ -7,7 +8,7 @@ from rdkit import Chem
 def compute_inchikey(
     smiles: str,
     key_type: Literal["full", "skeleton"] = "full",
-) -> Optional[str]:
+) -> str | None:
     """Compute the InChIKey for a SMILES string.
 
     Returns None for unparseable SMILES. Skeleton key is the first 14 chars

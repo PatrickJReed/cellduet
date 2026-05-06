@@ -1,4 +1,5 @@
 """Tests for src/cellduet/cpjump1.py."""
+
 import pandas as pd
 
 from cellduet.cpjump1 import align_per_plate_features

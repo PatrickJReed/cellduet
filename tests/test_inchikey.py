@@ -1,8 +1,8 @@
 """Tests for src/cellduet/inchikey.py."""
+
 import pytest
 
 from cellduet.inchikey import compute_inchikey
-
 
 # Aspirin: SMILES -> known full InChIKey
 ASPIRIN_SMILES = "CC(=O)OC1=CC=CC=C1C(=O)O"

@@ -7,7 +7,8 @@ This module provides the per-compound aggregation step; loaders and S3
 fetch belong in the notebook so they can be inspected interactively.
 See docs/datasets/jump-cp-cpg0016.md.
 """
-from typing import Iterable
+
+from collections.abc import Iterable
 
 import pandas as pd
 

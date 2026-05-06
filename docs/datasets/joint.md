@@ -1,109 +1,102 @@
-# Joint dataset picture
+# Joint dataset picture (B3 three-arm v0 design)
 
-What the cellduet v0 cross-modal analysis actually has to work with, after pairing **Replogle K562 genome-wide CRISPRi Perturb-seq** with **Recursion rxrx3-core CRISPR-KO Cell Painting (Phenom embeddings)**. Companion to `tahoe-100m.md`, `replogle.md`, `rxrx3.md` in this directory. The two single-dataset dossiers cover origin, biology, and feasibility per modality; this file covers everything that depends on having both at once.
+What the cellduet v0 cross-modal analysis actually has to work with, after pairing **Tahoe-100M** (transcriptomic, 379 small-molecule drugs across 50 cancer cell lines) with three morphological compound datasets in a complementary three-arm structure. Companion to the per-dataset dossiers in this directory: `tahoe-100m.md`, `jump-cp-cpg0016.md`, `cpjump1.md`, `rxrx3.md`. The Replogle dossier (`replogle.md`) and B2 same-cell scan (`scan_b2_same_cell.md`) document a CRISPR-vs-CRISPR alternative that was evaluated and dropped during planning; they remain useful as v1 reference material.
 
-## Headline numbers
+This file covers everything that depends on having all four datasets in view at once.
 
-| Property | Replogle K562 GW (transcriptomic) | rxrx3-core (morphological) |
-|---|---|---|
-| Perturbation modality | CRISPRi knockdown (dCas9-KRAB) | CRISPR-Cas9 knockout |
-| Cell context | K562 (BCR-ABL+ CML, suspension, TP53-mutant) | HUVEC (primary umbilical vein endothelial, adherent) |
-| Perturbed genes (named) | 9,866 | 735 (+ `EMPTY_control`) |
-| Pre-computed per-gene aggregate | Yes (Z-normalized pseudobulk h5ad, 375 MB) | No (per-well embeddings, must aggregate) |
-| Embedding dimensionality | ~8,000 measured genes (LFC-like Z-scores) | 384 (OpenPhenom), 1024 (Phenom-1), 1664 (Phenom-2) |
-| License | CC BY 4.0 (Figshare+) | Recursion bespoke EULA (CC-BY-SA-like, **neuroscience carve-out**) |
-| Total v0 download | ~470 MB (bulk h5ad + RPE1 sanity check) | ~550 MB (OpenPhenom parquet + metadata) or ~2.3 GB (Phenom-2) |
+## v0 research question, restated for B3
 
-**The expected named-gene intersection is approximately 600–720 genes**, i.e., 735 minus K562-non-expressed members of the rxrx3-core panel. This clears the 500-gene feasibility gate by a comfortable margin and is the operating sample size for the cross-modal correlation. The exact count is the first empirical computation in `notebooks/01_data_exploration.ipynb`.
+> Do drug-induced transcriptomic phenotypes (Tahoe-100M) and drug-induced morphological phenotypes (JUMP-CP / rxrx3-core / CPJUMP1) agree on the same compounds, and where they disagree, does the discordance carry interpretable structure (off-target activity, polypharmacology, cell-type-restricted effects)?
 
-## What the v0 question actually tests
+The pairwise per-compound distance matrix on each modality is the unit of analysis. The headline statistic is a Mantel correlation (or RV coefficient) between the two distance matrices restricted to the shared-compound set. Per-compound neighborhood Jaccard quantifies which compounds agree. Discordant compounds are then characterized against drug-target annotations and known polypharmacology, which is the writeup's interpretive layer.
 
-With these two datasets paired, the cross-modal concordance question is **not** "do CRISPR perturbations of gene X look the same in both modalities?" Different cell types and different perturbation chemistries (knockdown vs knockout) make that test ill-posed. What the pairing *does* support is a **relative-phenotype** test: do two genes that look similar in K562 transcriptomic space also look similar in HUVEC morphological space?
+## The three arms
 
-The natural test statistic is therefore a Mantel correlation (or RV coefficient) between the two `n × n` gene-gene distance matrices on the overlapping gene set, where `n ≈ 600–720`. A positive correlation says the two modalities agree on which genes group together; a near-zero correlation says agreement does not survive the cell-type and perturbation-chemistry shift. Both outcomes are findings, not failures.
+Three cross-modal comparisons, each with a distinct role. All three share the same Tahoe transcriptomic backbone, joined on full InChIKey.
 
-This framing also clarifies what counts as a per-gene "convergent" or "divergent" call: a gene is **agreeing** if its near-neighbor sets in the two modalities have a Jaccard overlap above what a permutation null predicts; it is **divergent** if its neighborhoods are uncorrelated or anticorrelated. The v0 writeup names cases on both ends.
+| Arm | Role | Compounds (Tahoe ∩) | Cell context | Morphology embedding | License stack |
+|---|---|---|---|---|---|
+| **B3b primary** Tahoe × JUMP-CP cpg0016 | Headline statistical test | **228** | Tahoe-50-cancer × U2OS osteosarcoma | CellProfiler 737-d (harmony-corrected) and/or cpcnn 672-d | **CC0 + CC0** |
+| **B3a robustness** Tahoe × rxrx3-core | Encoder + cell-type robustness | **145** | Tahoe-50-cancer × HUVEC primary endothelial | OpenPhenom 384-d, Phenom-1 1024-d, Phenom-2 1664-d | CC0 + Recursion EULA (CC-BY-SA-like; **neuroscience carve-out**) |
+| **B3c sanity** Tahoe-A549 × CPJUMP1-A549 | Same-cell-line direction-of-effect check | **14** (3 positive controls + 11 treatments) | **A549 literal match** | CellProfiler features only | CC0 + CC0 |
 
-## Disease anchor decision
+The three-arm structure tests whether the cross-modal agreement pattern survives several confounds in succession: encoder change (Phenom vs CellProfiler/cpcnn), cell-type change (U2OS vs HUVEC), and same-cell-line collapse (A549 in both modalities). Each arm answers a question the other two cannot.
 
-The original brainstorm assumed neurodegeneration as the natural anchor (TARDBP, FUS, MAPT, SNCA, LRRK2, and friends). That option is closed for this dataset pair, for two reinforcing reasons:
+**Why all three matter together.**
+- B3b is the headline because it has the largest N and the cleanest license stack.
+- B3a tests whether B3b's signal is a U2OS / CellProfiler artifact or a real cross-encoder + cross-cell-context phenotype concordance.
+- B3c is the smallest but the only arm where cell-line context is matched. If B3b shows agreement at scale and B3c shows the same direction-of-effect at small N with matched cells, the cross-cell-line caveat is empirically defused; if B3c sign-flips, the writeup has to discuss cell-context-dependence honestly.
 
-1. **rxrx3-core has zero of the 18 neurodegeneration core genes** in its 735-named-gene panel (verified directly against the metadata CSV; see `rxrx3.md` Section 3).
-2. **The Recursion EULA forbids neuroscience research** as a use case for the data and embeddings (Section 3 of the EULA shipped with rxrx3-core). Even if the genes were present, the contractual carve-out would block the writeup.
+## Compound identifier and joining
 
-**The anchor is oncology**, by elimination. Coverage in the joint set:
+Tahoe ships canonical SMILES per drug in `drug_metadata.parquet`; the agent-verified intersections used **RDKit-derived full InChIKey** for B3b (228) and B3c (14), and **skeleton InChIKey** for B3a (145; the looser key was needed to bridge stereoisomer differences with rxrx3-core). The cellduet pipeline pins the join policy as:
 
-| Driver | rxrx3-core | Replogle K562 GW (prior) | Joint |
-|---|---|---|---|
-| TP53 | yes | yes (mutant in K562, but expressed) | yes |
-| BRAF | yes | likely yes | yes |
-| EGFR | yes | likely yes | yes |
-| PIK3CA | yes | likely yes | yes |
-| KRAS | no | likely yes | rxrx3-blocked |
-| MYC | no | likely yes | rxrx3-blocked |
-| PTEN | no | likely yes | rxrx3-blocked |
-| RB1 | no | likely yes | rxrx3-blocked |
-| CDKN2A | no | possibly deleted in K562 | both-blocked |
+1. Compute full InChIKey from canonical SMILES on the Tahoe side.
+2. Match against pre-computed InChIKey columns on each morphology side (cpg0016 ships InChIKey + SMILES + JCP2022 IDs; CPJUMP1 ships InChIKey; rxrx3-core ships drug names that need mapping to InChIKey via PubChem or DrugBank).
+3. Use full InChIKey for B3b and B3c. For B3a, fall back to skeleton InChIKey only if full-key match yields fewer than ~100 compounds; document the looser join in the writeup.
 
-Four drivers (TP53, BRAF, EGFR, PIK3CA) are confirmed in rxrx3-core and almost certainly present in Replogle K562 GW. Empirical confirmation goes in notebook 01 by intersecting with the loaded `K562_gwps_normalized_bulk_01.h5ad` `.obs` perturbation list. **One worked oncology vignette is the v0 disease-anchored example**, with TP53 the most likely focal gene given how thoroughly characterized it is in K562 (mutant-loss-of-function baseline state, multiple known transcriptional and morphological consequences).
+## Cell-context considerations
 
-Cardiac (1/5 in rxrx3-core: SCN5A) and metabolic (1/6 in rxrx3-core: INSR) anchors are too thin to support a vignette and are dropped from v0 scope.
+The three arms span four cell contexts on the morphology side and 50 cancer cell lines on the transcriptomic side. The interpretation matrix:
 
-## Symbol harmonization plan
+- **B3b** (Tahoe-pooled × JUMP-U2OS): Tahoe is pooled across its 50 cancer lines per drug to produce one transcriptomic vector; this collapses cell-context heterogeneity into the average drug response. JUMP is U2OS-only, an osteosarcoma adherent line. The cell-context mismatch in B3b is *real but bounded*: both sides are cancer biology; the difference is tumor type, not cancer-vs-normal.
+- **B3a** (Tahoe-pooled × rxrx3-HUVEC): Tahoe is again pooled. RxRx3-core is HUVEC, a primary endothelial line, neither cancer nor adherent-fibroblast. Cancer × normal-endothelial is the largest cell-context jump in the v0 design. Concordance found here is the strongest claim of cell-context-invariant phenotype concordance.
+- **B3c** (Tahoe-A549-only × CPJUMP1-A549): Tahoe is *subset to A549 cells* before per-drug aggregation, producing one A549-specific transcriptomic vector per drug. CPJUMP1 ships the same A549 lung adenocarcinoma line. This is the only arm where the cell context is literally identical. Limited to 14 compounds (11 once positive controls are excluded).
 
-- **rxrx3-core** uses HGNC-style symbols (verified: TP53, EGFR, BRAF, PIK3CA, INSR all present as such).
-- **Replogle h5ad** uses Ensembl gene IDs in `var_names` with HGNC symbols typically in `var['gene_symbol']` or analogous; the `.obs.gene` (perturbed gene) field is HGNC.
+Optional v0 sub-analysis: for the 228 B3b compounds, also compute a Tahoe-A549-only transcriptomic vector and report how the cross-modal Mantel correlation changes between Tahoe-pooled and Tahoe-A549. This is one extra column in the headline table at trivial compute cost, and it directly probes how much of the B3b cell-context mismatch matters.
 
-Plan: left-join on HGNC symbol, fall back to Ensembl-ID lookup via `mygene.info` (or a static GTF-derived mapping pinned to GRCh38 / GENCODE 44 for reproducibility). Pre-flight check in notebook 01: count unmapped symbols in each direction and inspect the unmapped list for systematic causes (recently-renamed FAM-family genes, pseudogenes, alias mismatches).
+## Disease anchor
+
+By composition, **oncology**. Tahoe is 50 cancer cell lines profiled with cancer-relevant compounds (kinase inhibitors, chemo agents, hormone-receptor modulators, epigenetic regulators). JUMP-CP cpg0016, CPJUMP1, and rxrx3-core all profile compounds in cancer or transformed lines. Tahoe ships GPT-4o-derived drug-target annotations covering ~280 unique target genes, with EGFR (12 drugs), KRAS, BRAF, PIK3CA, ALK, MET, FGFR1-4, HDAC1-11, mTOR, CDK4/6 as the densest targets. The writeup's worked vignette is a focal compound or compound family with multiple Tahoe-overlap hits — EGFR inhibitors are the most plausible (12 drugs, all on-target, multiple reach JUMP and rxrx3-core). TP53-stabilizers and KRAS inhibitors are alternative vignette candidates if the EGFR family delivers a degenerate result.
+
+Neurodegeneration, cardiac, and metabolic anchors remain **out of scope**: Tahoe's drug list does not target these gene sets, and the rxrx3-core EULA forbids neuroscience framing.
 
 ## License joint
 
-The artifact pair has heterogeneous licenses; this matters for what cellduet can publish.
+The artifact stack has heterogeneous licenses; this matters for what cellduet can publish.
 
-- **Replogle processed h5ad: CC BY 4.0** (Figshare+). Permissive for portfolio publication, attribution required.
-- **Recursion rxrx3-core: bespoke EULA**. Recursion describes it as "CC BY-SA-like" but the actual file shipped on Hugging Face has hard carve-outs: no neuroscience research, no target validation as a commercial program, no use for AI-model training in the neuroscience field. Attribution and share-alike are still required for derivative works.
+- **B3b stack: fully CC0**. Tahoe-100M (CC0-1.0 on Hugging Face), JUMP-CP cpg0016 (CC0-1.0 on the Cell Painting Gallery), CellProfiler features (CC0), cpcnn weights and features (CC-BY-4.0 via Zenodo). The headline arm can be redistributed without restriction.
+- **B3a stack: CC0 + Recursion EULA**. Tahoe is CC0; rxrx3-core ships under Recursion's bespoke EULA with hard carve-outs (no neuroscience research, no commercial target validation, no use as training data for AI in neuroscience). Derivative analysis is permitted; the writeup cannot be framed as neuroscience and per-file licensing must be documented in any HF dataset push.
+- **B3c stack: fully CC0**. Tahoe is CC0; CPJUMP1 is CC0 on the Cell Painting Gallery.
 
-What this means concretely for cellduet:
-
-- The repo and writeup can publish derivative analyses, figures, and per-gene aggregated embeddings under a permissive license **as long as** the writeup does not frame the work as neuroscience research and does not claim target validation.
-- The oncology anchor is on-policy.
-- Any v1 plan to fine-tune a model "trained on rxrx3-core for neurological disease prediction" is contractually disallowed and must not appear in the writeup, even as a stretch.
-- HF dataset names should not contain "neuroscience" branding.
+The HF artifact released at the end of v0 (per-compound aggregated embeddings + distance matrices) should be published as **two separate datasets**: one CC0 dataset covering the B3b + B3c outputs, one Recursion-EULA-respecting dataset covering the B3a outputs. Mixing licenses in a single artifact is operationally messy.
 
 ## Joint compute plan
 
-Both files are small enough that the v0 cross-modal pipeline fits comfortably in one Colab Free session:
+All three arms are Colab-Free-tractable. Total v0 download is approximately 5–6 GB once the Tahoe slice is restricted to a tractable per-drug aggregate (the full Tahoe atlas is 337 GB; the cellduet path uses the streamed `pseudobulk_differential_expression` parquet plus `drug_metadata`, totaling a few GB).
 
-1. **Download once, cache to Drive.** `K562_gwps_normalized_bulk_01.h5ad` (375 MB) + `rpe1_normalized_bulk_01.h5ad` (95 MB, sanity check) + `OpenPhenom_rxrx3_core_embeddings.parquet` (532 MB) + `metadata_rxrx3_core.csv` (~20 MB). Total ~1 GB. Easily fits in 15 GB Drive.
-2. **Per-modality per-gene aggregation.** Replogle: row-mean Z-scores within each perturbation across `gemgroup`. Output: 9,866 × ~8,000 (perturbed × measured) at float32 ≈ 315 MB. RxRx3: `EFAAR_benchmarking`-style TVN on EMPTY_control wells, then per-gene mean across replicate wells. Output: 735 × 384 ≈ 1.1 MB.
-3. **Symbol harmonization + intersection.** Reduces to ≈600–720 genes on both sides.
-4. **Per-modality pairwise distance matrices.** ~720 × 720 cosine. <1 MB each.
-5. **Cross-modal Mantel + RV-coefficient + per-gene neighborhood Jaccard.** Trivial compute.
-6. **Persist.** Push the joint per-gene embeddings + distance matrices to a Hugging Face dataset (`patrickjreed/cellduet-joint-pergene` or similar). Total artifact ~50 MB.
+1. **Tahoe transcriptomic per-drug vectors.** Stream `pseudobulk_differential_expression` from HF. Filter to non-DMSO drugs, retain `(sample, gene_symbol, log_fold_change)`. Join `sample` to `(drug, cell_line, plate)` via metadata parquets. Two outputs: Tahoe-pooled per drug (`379 × 2,000-HVG` matrix), and Tahoe-A549-only per drug (`(379-or-fewer) × 2,000-HVG`). Plate-matched DMSO controls per the Tahoe HF README.
+2. **JUMP cpg0016 per-compound vectors.** Pull `profiles_var_mad_int_featselect_harmony.parquet` (2.64 GB single file) from `s3://cellpainting-gallery/cpg0016-jump-assembled`. Filter wells to the 228 Tahoe-overlap InChIKeys. Aggregate per compound via pycytominer-style mean across replicates. Output: `228 × 737-d`.
+3. **rxrx3-core per-compound vectors.** Pull `OpenPhenom_rxrx3_core_embeddings.parquet` (532 MB) and metadata CSV from HF. Filter to the 145 Tahoe-overlap InChIKey-skeleton-matched compounds. Apply EFAAR-style TVN on `EMPTY_control` wells, then per-compound mean across replicates. Output: `145 × 384-d` (OpenPhenom). Optional repeat with Phenom-1 (1024-d) and Phenom-2 (1664-d) parquets.
+4. **CPJUMP1-A549 per-compound vectors.** Pull CellProfiler features for the relevant CPJUMP1 plates (~9 MB total slice for 14 compounds × ~4 replicate wells × ~2 timepoints). Filter to A549, compound-perturbation only (drop ORF/CRISPR plates), aggregate per compound. Output: `14 × ~4,000-CellProfiler-features` (the per-plate feature schema differs across plates; pre-aggregation alignment needed).
+5. **Per-arm pairwise distance matrices.** Cosine distance is the default. B3b: `228 × 228`. B3a: `145 × 145`. B3c: `14 × 14`.
+6. **Cross-modal tests per arm.** Mantel correlation, RV coefficient, per-compound neighborhood Jaccard with permutation null. B3c reports direction-of-effect rather than significance because of small N.
+7. **Publish.** Push per-compound aggregated embeddings + distance matrices to two HF datasets: `patrickjreed/cellduet-b3-cc0` (B3b + B3c outputs) and `patrickjreed/cellduet-b3-rxrx3` (B3a outputs).
 
-Bottom line: the entire v0 numerical pipeline fits in one ~3-hour Colab Free session, well under the 12-hour ceiling, with no model inference required. Switching the morphology side to Phenom-1 (1024-d) or Phenom-2 (1664-d) is a parquet swap with no other changes.
+Total compute footprint per arm is small (sub-second to minutes for all numerical operations once embeddings are loaded). The dominating cost is download / first-load of the cpg0016 harmony parquet (2.64 GB) and the Phenom-2 parquet (2.3 GB) on cold Colab sessions. Drive caching mitigates.
 
 ## Joint risks
 
 In rough order of how badly each can compromise v0:
 
-1. **Cell-type mismatch (K562 leukemia × HUVEC endothelial) is the dominant biological caveat.** A weak Mantel correlation may reflect cell-type-bound biology rather than modality difference. The writeup must frame the test honestly: this is a *gene-intrinsic perturbation phenotype* test, asking which gene effects survive the cell-type shift, not a clean same-context comparison. A permutation null built from gene-set-stratified shuffles helps, but the caveat is structural, not statistical.
-2. **CRISPRi knockdown vs CRISPR knockout chemistry.** Replogle is partial knockdown (median KD efficiency 85.5% in K562); RxRx3 is null-allele knockout. For genes with strong dose-dependence or haploinsufficiency, the two perturbations can produce qualitatively different phenotypes. Less severe than (1) but real.
-3. **Per-gene aggregation noise on the morphology side.** rxrx3-core has variable per-gene replicate counts; some genes may have 1–2 wells after curation. Mean-aggregation noise inflates cross-modal disagreement. Notebook 01 must report a per-gene replicate count histogram and either weight or drop low-count genes.
-4. **TVN / PCA-CS sufficiency.** The released Phenom embeddings are PCA-CenterScale aligned, but residual plate effects can inflate within-plate gene-gene similarity. A second-pass plate-residual regression on per-well embeddings before averaging is a hedge. If unresolved, plate structure can leak into the morphology distance matrix and create false agreement.
-5. **Symbol harmonization gotchas.** Recently-renamed FAM-family genes, sex-chromosome paralogs, pseudogene aliases. Manageable, but worth a careful first pass.
-6. **License heterogeneity in derivatives.** Mixing CC BY 4.0 (Replogle) and the Recursion EULA (rxrx3-core) in one published artifact requires careful per-file licensing notes in the HF dataset README. Not a blocker, but a documentation chore.
-7. **Effect-size detectability on the Replogle side.** Per Nadig 2024/2025, only ~36% of K562 GW perturbations show FDR-significant transcriptome-wide effects. cellduet uses Z-scored vectors directly (not significance-thresholded), so this is mitigated, but for genes with very small true effects the embedding is dominated by noise and contributes nothing to the correlation.
+1. **Cell-line context mismatch in the primary arm (B3b).** Tahoe-pooled (50 cancer lines) × U2OS osteosarcoma collapses cell-type heterogeneity on the Tahoe side and pins one cell type on the JUMP side. Concordance found here is *cell-context-averaged* on one side and *one-cell-context-specific* on the other. The Tahoe-A549-restricted alternative for B3b mitigates partially. B3c is the design-level answer: same cell line, smaller N, qualitative confirmation.
+2. **Different morphology encoders across arms.** B3b uses CellProfiler / cpcnn, B3a uses Phenom-family, B3c uses CellProfiler only. A finding that holds across arms is encoder-robust; a finding that varies is encoder-specific. The writeup must frame this as a feature, not a bug, but it does mean per-arm headlines will differ in absolute Mantel-r and require careful comparison.
+3. **Drug-target annotation noise (Tahoe).** The 280-gene drug-target column was generated by GPT-4o and validated against MedChemExpress. For the writeup's interpretive layer (target-deconvolution / polypharmacology framing), individual claims about specific drugs need DrugBank / ChEMBL cross-checks before publication.
+4. **Pre-existing literature on drug-phenotype concordance.** The "do morphology and transcriptomics agree on drug effects" question has prior art via L1000 vs Cell Painting comparisons (e.g., the Subramanian-Way Connectivity Map work) and Recursion's internal benchmarks. The cellduet writeup needs a clear claim of novelty (likely: Tahoe-100M is new, the three-arm structure is new, the discordance-as-signal framing is more developed than prior comparison-only work).
+5. **Tahoe pseudobulk DE table provenance.** The exact statistical method used to generate the `pseudobulk_differential_expression` parquet is not in the README schema. Pin it down by reading the paper before trusting the LFCs (per `tahoe-100m.md` Section 7).
+6. **Plate / batch effects on the morphology side.** JUMP cpg0016's harmony-corrected parquet handles inter-source heterogeneity; rxrx3-core ships PCA-CenterScale-aligned embeddings with EFAAR TVN on top recommended; CPJUMP1's per-plate feature selection means feature-schema drift across plates and pre-aggregation alignment is mandatory.
+7. **Compound replicate-count heterogeneity.** Each morphology dataset has different per-compound replicate density. Notebook 01 must report per-compound replicate-count histograms per arm and either weight or drop low-count compounds.
 
-## Joint open questions for notebook 01
+## Open questions for notebook 01
 
-- Exact gene-set overlap after symbol harmonization. Estimate 600–720; verify.
-- Per-gene replicate-count distribution in rxrx3-core for the overlap gene set.
-- Are the four oncology drivers (TP53, BRAF, EGFR, PIK3CA) all present in `K562_gwps_normalized_bulk_01.h5ad` `.obs`?
-- Does the per-modality variance structure (e.g., effective rank of the gene-gene distance matrix) suggest enough signal-to-noise for a Mantel test to have power, or does one modality dominate?
-- Does cross-screen Replogle agreement (K562_gwps × RPE1 essential) on shared genes correlate with cross-modal Replogle × rxrx3-core agreement on the same genes? If the two transcriptomic screens disagree on a gene, expecting cross-modal agreement is unreasonable.
-- Sensitivity of the cross-modal correlation to embedding choice (OpenPhenom-384 vs Phenom-1-1024 vs Phenom-2-1664). One ablation table.
+- Verify the exact 228-compound and 145-compound and 14-compound intersections after re-running the InChIKey joins on freshly-loaded data.
+- Per-compound replicate-count distribution per arm. Drop or weight thin-replicate compounds.
+- Tahoe-pooled vs Tahoe-A549 cross-modal Mantel-r delta on the B3b 228-compound set. How much of the cross-cell-context caveat is real?
+- Sensitivity of B3b's headline Mantel-r to encoder choice (CellProfiler 737-d vs cpcnn 672-d). Pick one as primary.
+- Sensitivity of B3a's Mantel-r to Phenom version (OpenPhenom 384 vs Phenom-1 1024 vs Phenom-2 1664). Reportable as an ablation table.
+- B3c sign agreement: do the 11 non-control compounds show same-direction effect in transcriptomic and morphological space at A549?
+- Drug-target annotation quality spot-check on the EGFR family (12 drugs). Do per-target predicted-MOA rollups make biological sense?
 
 ## Summary verdict
 
-The Replogle K562 GW × rxrx3-core pairing is **feasible, ethical (within EULA), and Colab-Free-tractable**. The 600–720-gene overlap clears the v0 feasibility gate. Oncology is the disease anchor; neurodegeneration is closed for this dataset pair. The cell-type mismatch is the single biggest caveat for biological interpretation and must be named openly in the writeup. Tahoe-100M moves to v1 as the drug-target-inference extension once v0 ships.
+The B3 three-arm design is **feasible, ethical (within the rxrx3 EULA), and Colab-Free-tractable**. The 228-compound primary, 145-compound robustness arm, and 14-compound same-cell sanity check together provide three layers of evidence for the headline drug-phenotype concordance claim. Tahoe-100M is the transcriptomic backbone; JUMP-CP cpg0016 is the morphological primary; rxrx3-core and CPJUMP1 are robustness and sanity layers. Replogle moves to a v1 follow-up extending the framework to gene-perturbation phenotypes once v0 ships.

@@ -6,7 +6,7 @@ For the **strategic background** behind the project (why it exists, project-sele
 
 ## What this repo is
 
-`cellduet` is a portfolio research artifact authored by Patrick J. Reed, Ph.D. (computational biologist, 15+ years; recent Principal Scientist at Bristol Myers Squibb). The project tests whether perturbation phenotypes converge across **transcriptomic** (Tahoe-100M / Arc Virtual Cell Atlas) and **morphological** (Recursion RxRx3 / Phenom embeddings) readouts of the same gene-level CRISPR perturbations.
+`cellduet` is a portfolio research artifact authored by Patrick J. Reed, Ph.D. (computational biologist, 15+ years; recent Principal Scientist at Bristol Myers Squibb). The project tests whether **small-molecule drug perturbation phenotypes** agree across transcriptomic (Tahoe-100M / Arc Virtual Cell Atlas) and morphological (JUMP-Cell Painting Consortium cpg0016 primary; Recursion rxrx3-core robustness arm with Phenom embeddings; CPJUMP1 same-cell-line sanity check) readouts. v0 is a three-arm design joined on full InChIKey: 228 shared compounds in B3b primary, 145 in B3a robustness, 14 in B3c sanity. v1 extends the framework to gene-perturbation cross-modality (Replogle 2022 Perturb-seq paired with CRISPR-KO Cell Painting from JUMP / PERISCOPE).
 
 The artifact is positioned for senior IC roles at:
 - **Anthropic** — Applied AI Engineer, Life Sciences (live JD); Research Scientist, Life Sciences (when reposted)
@@ -35,10 +35,10 @@ Onboarding details: `docs/SETUP.md`.
 
 These constraints exist because the project must be shippable in 4–6 weeks of evening work, on Colab Free tier, by one person. Violate them only after explicit user approval.
 
-- **Use pre-computed embeddings.** Do NOT retrain encoders from raw images (RxRx3 ≈ 5–10 TB) or raw counts. Tahoe-100M and RxRx3 Phenom features are publicly available on the Arc Virtual Cell Atlas and HuggingFace respectively. The interesting research question lives in the embedding-space comparison, not in the encoders.
+- **Use pre-computed embeddings and pseudobulk aggregates.** Do NOT retrain encoders from raw images (RxRx3 full release ~100 TB; JUMP-CP cpg0016 ~358 TB) or raw counts (Tahoe-100M ~337 GB). The morphology side ships pre-computed CellProfiler features (~737-d harmony-corrected, CC0), cpcnn EfficientNet-B0 features (672-d), and Phenom-family embeddings (OpenPhenom 384-d, Phenom-1 1024-d, Phenom-2 1664-d on rxrx3-core). The transcriptomic side ships streamable `pseudobulk_differential_expression` parquet plus drug/cell-line metadata. The interesting research question lives in the embedding-space comparison, not in the encoders.
 - **No encoder training in v0.** A v1 stretch may include a small shared-latent contrastive model on top of frozen embeddings; full encoder training is out of scope for the foreseeable future.
 - **Lean module architecture.** Do not pre-create empty `data/`, `embeddings/`, `analysis/` Python packages until there is real code to put in them. Module structure should emerge from working code, not be designed up-front.
-- **Respect Colab Free tier constraints.** RAM (~12 GB), session length (~12 hr), idle disconnect (~90 min). Aggregate to per-gene level early; never load whole Tahoe-100M into RAM. Save intermediate artifacts to Drive (`/content/drive/MyDrive/cellduet/cache/`) AND/OR push to HF Hub before disconnect.
+- **Respect Colab Free tier constraints.** RAM (~12 GB), session length (~12 hr), idle disconnect (~90 min). Aggregate to per-compound level early; do not load full Tahoe-100M expression or full JUMP cpg0016 imagery. Stream the Tahoe pseudobulk parquet; pull only the harmony-corrected JUMP feature parquet (2.64 GB). Save intermediate artifacts to Drive (`/content/drive/MyDrive/cellduet/cache/`) AND/OR push to HF Hub before disconnect.
 - **Don't run heavy compute locally.** If a notebook cell exceeds ~30 seconds or ~2 GB RAM on a laptop, that cell belongs on Colab. Local execution is for scratch + quick imports + iteration on logic.
 
 ## Voice and writing style
@@ -67,7 +67,7 @@ Patrick has explicit voice preferences captured at `/Users/patrickreed/NewRoleEf
 - Do **not** pre-architect a deep module hierarchy without code. Empty packages are technical debt.
 - Do **not** add CI workflows, pre-commit hooks, or `tests/` scaffolding until there is something to test or run.
 - Do **not** invent or estimate metrics. Every number in the README, paper draft, or blog must trace to an actual computation.
-- Do **not** introduce a third dataset or scope expansion without surfacing the tradeoff to the user. v0 is two datasets: Tahoe-100M and RxRx3.
+- Do **not** introduce a fifth dataset or scope expansion without surfacing the tradeoff to the user. v0 is four datasets: Tahoe-100M (transcriptomic backbone) plus JUMP-CP cpg0016 (morphological primary), rxrx3-core (robustness), and CPJUMP1 (same-cell sanity).
 - Do **not** write multi-paragraph docstrings or extensive prose comments. One short line max.
 - Do **not** create new top-level documentation files (`*.md`) without explicit ask. Edit `README.md` for public-facing changes; edit this file (`CLAUDE.md`) for Claude-context changes.
 - Do **not** rewrite the README's "Author" or "Related work" sections without checking with Patrick first.
@@ -82,24 +82,26 @@ Patrick has explicit voice preferences captured at `/Users/patrickreed/NewRoleEf
 
 ## v0 task list
 
-Rough order; revisit as work proceeds. All compute steps run on Colab; results push to HF for persistence.
+Rough order; revisit as work proceeds. All compute steps run on Colab; results push to HF for persistence. The plan implements the **B3 three-arm design** documented in `docs/datasets/joint.md`. Compound-level joining throughout, on full InChIKey.
 
 0. **Run `notebooks/00_environment_smoke.ipynb` on Colab** to confirm the runtime is good (GPU, HF login, Drive mount).
-1. **Data exploration** (`notebooks/01_data_exploration.ipynb`): pull Tahoe-100M metadata + RxRx3 metadata, enumerate the gene-perturbation overlap. Notebook output drives whether v0 is feasible (need ≥ ~500 overlapping genes for meaningful concordance analysis). Push the gene-overlap table to HF as a small dataset for reuse across later notebooks.
-2. **Per-gene transcriptomic phenotype embedding** (`notebooks/02_tahoe_pergene.ipynb`): from Tahoe-100M perturbation effects (pseudobulk DE or direct foundation-model embeddings). Push embeddings to HF dataset `patrickjreed/cellduet-tahoe-pergene`.
-3. **Per-gene morphological phenotype embedding** (`notebooks/03_rxrx3_pergene.ipynb`): from RxRx3 Phenom features (gene-level aggregation across replicates and cell types). Push to HF dataset `patrickjreed/cellduet-rxrx3-pergene`.
-4. **Pairwise distance matrices** within each modality (`notebooks/04_distances.ipynb`). Pull both embedding datasets from HF; produce two distance matrices on the overlapping gene set.
-5. **Cross-modality correlation analysis** (`notebooks/05_concordance.ipynb`): Mantel test, scatter of transcriptomic vs morphological distances, identification of concordant + discordant cases.
-6. **Convergent perturbation detection + biological interpretation** (`notebooks/06_convergent.ipynb`): rank genes by cross-modality concordance; manually annotate top concordant + top discordant gene clusters; figures.
-7. **Repo polish + writeup**: clean notebooks, render to HTML for portfolio display, write a paper-style README extension or blog post. Ship.
+1. **Data exploration + intersection** (`notebooks/01_intersections.ipynb`): pull Tahoe drug list, JUMP cpg0016 compound metadata, rxrx3-core compound metadata, CPJUMP1 compound metadata. Compute and verify the InChIKey intersections (target: 228 / 145 / 14). Per-compound replicate-count histograms per arm. Push the joint compound manifest to HF as `patrickjreed/cellduet-compound-manifest`.
+2. **Per-compound transcriptomic phenotype** (`notebooks/02_tahoe_percompound.ipynb`): stream Tahoe `pseudobulk_differential_expression`, plate-match to DMSO, aggregate to per-(drug, cell_line) LFC vectors over ~2,000 HVGs. Two products: `Tahoe-pooled` (379 × 2K) for B3b/B3a, and `Tahoe-A549` (~A549 drugs × 2K) for B3b cell-context probe + B3c. Push to HF dataset `patrickjreed/cellduet-tahoe-percompound`.
+3. **Per-compound morphological phenotype, B3b primary** (`notebooks/03_jump_percompound.ipynb`): pull JUMP cpg0016 harmony-corrected feature parquet (2.64 GB). Filter to the 228 Tahoe-overlap InChIKeys. Aggregate per compound via pycytominer-style mean across replicates. Output: 228 × 737-d. Push to HF dataset `patrickjreed/cellduet-jump-percompound`. Optional cpcnn 672-d ablation.
+4. **Per-compound morphological phenotype, B3a robustness** (`notebooks/04_rxrx3_percompound.ipynb`): pull rxrx3-core OpenPhenom-384 embeddings (532 MB). EFAAR-style TVN on EMPTY_control wells. Filter to 145 Tahoe-overlap (skeleton-InChIKey-matched) compounds. Per-compound mean. Output: 145 × 384-d. Optional Phenom-1/2 ablation.
+5. **Per-compound morphological phenotype, B3c sanity** (`notebooks/05_cpjump1_percompound.ipynb`): pull CPJUMP1 CellProfiler features for the relevant A549 compound plates (~9 MB). Filter to compound-perturbation only (drop ORF/CRISPR), align per-plate feature schemas, aggregate per compound. Output: 14 × ~4,000 features. (No HF push for this small artifact unless useful.)
+6. **Within-arm distance matrices + cross-modal concordance tests** (`notebooks/06_concordance.ipynb`): cosine distance per modality per arm. Mantel correlation, RV coefficient, per-compound neighborhood Jaccard with permutation null. B3b headline + B3a robustness + B3c direction-of-effect check. Tahoe-pooled vs Tahoe-A549 sensitivity column on B3b.
+7. **Discordance interpretation + worked vignette** (`notebooks/07_interpretation.ipynb`): rank compounds by cross-modal concordance per arm; identify concordant + discordant clusters; characterize discordance against drug-target annotations and known polypharmacology; one focal compound family (likely EGFR inhibitors, ~12 Tahoe-overlap drugs) worked through end-to-end. Figures.
+8. **Repo polish + writeup**: clean notebooks (cleared outputs), render to HTML for portfolio display, write a paper-style README extension or blog post. Ship.
 
 Stretch (v1+):
 
-- Shared-latent contrastive model aligning the two embedding spaces; checkpoint to HF as `patrickjreed/cellduet-shared-latent`
-- Multi-task probing comparing modality-specific vs shared signal per gene class
-- HF Spaces Gradio demo: enter a gene, get its transcriptomic + morphological neighbors with concordance score
+- Extend to **gene-perturbation cross-modality** (Replogle 2022 K562 Perturb-seq × CRISPR-KO Cell Painting from JUMP / PERISCOPE); cellduet's CRISPR-vs-CRISPR sibling track. Dossier already drafted at `docs/datasets/replogle.md`.
+- Shared-latent contrastive model aligning the two compound-embedding spaces; checkpoint to HF as `patrickjreed/cellduet-shared-latent`
+- Multi-task probing comparing modality-specific vs shared signal per drug class / target class
+- HF Spaces Gradio demo: enter a compound or gene, get its transcriptomic + morphological neighbors with concordance score
 - Submit to next Arc Virtual Cell Challenge
 
 ## Status
 
-Scaffold only. No analysis code yet. Files: `README.md`, `CLAUDE.md`, `pyproject.toml`, `LICENSE`, `.gitignore`, `src/cellduet/__init__.py`, `docs/SETUP.md`, `notebooks/00_environment_smoke.ipynb`. Two initial commits on `main`.
+Scaffold + planning artifacts. No analysis code yet. Files: `README.md`, `CLAUDE.md`, `pyproject.toml`, `LICENSE`, `.gitignore`, `src/cellduet/__init__.py`, `docs/SETUP.md`, `docs/CONTEXT.md`, `notebooks/00_environment_smoke.ipynb`, plus a full set of dataset dossiers and feasibility scans under `docs/datasets/` (Tahoe-100M, Replogle, rxrx3, JUMP cpg0016, CPJUMP1, joint B3 design, B2 + B3 scans). Multiple commits on `main` reflecting the dossier-driven pivot from a CRISPR-vs-CRISPR framing to the locked-in B3 drug-vs-drug three-arm design.

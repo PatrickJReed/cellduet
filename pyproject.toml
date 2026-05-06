@@ -25,14 +25,13 @@ dependencies = [
   "pyarrow>=15.0",
   "scipy>=1.11",
   "scikit-learn>=1.3",
-  "anndata>=0.10",
-  "scanpy>=1.10",
   "huggingface_hub>=0.24",
-  "datasets>=2.20",
-  "matplotlib>=3.8",
-  "seaborn>=0.13",
   "tqdm>=4.66",
 ]
+
+# Slim core above keeps the Colab pip-resolver fast for narrow notebooks
+# (notebook 01 needs only [chem, aws]). Heavy deps live in extras below
+# and only get pulled when a notebook needs them.
 
 [project.optional-dependencies]
 dev = [
@@ -50,6 +49,17 @@ aws = [
 ]
 cellpainting = [
   "pycytominer>=1.0",
+]
+scrna = [
+  "anndata>=0.10",
+  "scanpy>=1.10",
+]
+hf-streaming = [
+  "datasets>=2.20",
+]
+plotting = [
+  "matplotlib>=3.8",
+  "seaborn>=0.13",
 ]
 torch = [
   "torch>=2.2",
